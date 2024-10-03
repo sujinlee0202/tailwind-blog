@@ -1,0 +1,157 @@
+---
+title: 원티드 FE프리온보딩 10월 사전미션 - 무한 스크롤 구현
+date: '2024-10-03'
+tags: ['Wanted', 'React']
+draft: false
+summary: 원티드 FE프리온보딩 10월 사전미션 - React와 IntersectionObserver API를 이용한 무한 스크롤 구현
+---
+
+나는 거의 매달 특별한 일이 없다면 매달 원티드에서 진행하는 프론트엔드 프리온보딩에 신청한다.
+취업에 도움이 되는 이력서, 면접 등 레시피를 제공해주는 것도 있지만 나에게 있어서는 선배 개발자 멘토님들의 강의와
+실무에 관련된 이야기, 다양한 인사이트 등 개인적인 역량 향상을 위해 신청하는 편이다.
+저번달에는 팀 프로젝트를 진행하는 시간과 강의 시간이 겹쳐서 정상적으로 참여하지 못했지만 이번달은 시간이 맞아 다행이었다.
+
+이번 10월달의 FE 챌린지 주제는 <b>"리액트 오픈소스 펼쳐보기"</b>  
+우리가 평소 무심하게 사용하던 기술들에 <b>왜?</b>라는 의문을 가지고 깊게 파보는 시간을 갖는다고 한다.
+커리큘럼을 보면 `useState` `useMemo` `useRef` `useEffect` `Fiber` 등에 관한 내용이 있다.
+자주 사용되는 React Hooks들이 <b>내부적으로 어떻게 작동하는지</b> 구체적으로 학습하게 될것으로 보인다.
+이를 통해 여태까지 개발했던 부분들에 대해 <b>왜 이렇게 개발했는가?</b>라는 질문에 대한 답변을
+좀 더 논리적이고 설득력있게 답변할 수 있는 개발자가 되기를 희망한다.
+
+시작하기에 앞서 매번 챌린지에는 <b>사전 미션</b>이 있는데 이번 챌린지의 사전미션은 '무한 스크롤 구현'이었다.
+이전에 개인 프로젝트를 할 때 무한 스크롤을 구현한 적이 있었는데 그 때에는 React-Query(TanStack-Query)를 이용해 구현했었다.
+하지만 이번 사전미션에서는 무한 스크롤 관련 라이브러리나 비동기 상태 관리 라이브러리 등을 사용하지 않고
+오직 Intersection Observer API를 이용해서 무한 스크롤을 구현하라고 제시되어있었다.
+따라서 TanStack-Query, SWR 등 라이브러리를 사용하지 않고 오직 React, TypeScript, Intersection Observer API만을 이용해
+무한 스크롤 기능을 구현해보았다. Mock Data나 데이터를 불러오는 함수 등은 미리 구현되어있어 무한 스크롤 기능만 구현하면 됬다.
+
+## 무한스크롤 구현하기
+
+무한 스크롤을 구현하기 위해 생각한 로직은 다음과 같다.
+
+1. 페이지가 변경될 때 Mock Data를 가져온다.  
+   변경된 페이지가 들어오면 기존 데이터에 변경된 페이지의 데이터를 추가한다.
+
+2. 화면의 가장 밑에 도착했을 때 페이지 번호를 증가시킨다.
+
+이렇게 하면 화면에 가장 밑에 도착하면 페이지 번호가 증가되고,
+페이지 번호가 변경되면 새로운 Mock Data를 가져와 기존 데이터에 새로 데이터가 추가되어 보여지게 된다.
+
+### 페이지가 변경될 때 Mock Data 불러오기
+
+```
+const [products, setProducts] = useState<Products | undefined>(undefined);
+const [page, setPage] = useState(1);
+const [isLoading, setIsLoading] = useState(false);
+
+// page가 변경될때마다 mockdata 불러오기
+useEffect(() => {
+  // 더이상 불러올 데이터가 없을 경우 데이터 패칭 멈추기
+  if (products?.isEnd) return;
+
+  setIsLoading(true);
+  getMockData(page)
+    .then((data: Products) => {
+      setProducts((prevProducts) => {
+        if (!prevProducts) return data;
+        return {
+          datas: [...prevProducts.datas, ...data.datas],
+          isEnd: data.isEnd,
+        };
+      });
+    })
+    .finally(() => setIsLoading(false));
+}, [page]);
+```
+
+page가 변경될 때마다 Mock Data를 불러오기 위해 `useEffect`를 사용하며 의존성 배열에 page를 추가했다.
+데이터 패칭이 시작될 때 loading상태를 true로 설정하고 데이터 패칭이 끝나면 loading상태를 false로 두어
+데이터가 불러올 때 loading을 설정할 수 있도록 구현했다.
+
+그럼 이제 데이터가 화면에 끝에 닿을 경우를 알아야 하는데 이 때 JavaScript의 Intersection Observer API를 사용할 수 있다.
+
+### Intersection Observer API
+
+Intersection Observer은 타겟 요소(내가 관찰중인 요소)와 상위 요소 사이의 변화를 관찰하는 방법이라 할 수 있다.
+스크롤을 내려서 내가 관찰중인 요소와 상위 요소가 만났을 경우 다음에 나올 데이터를 어떻게 처리할 것인지를 작성하면 된다.
+
+```
+const observer = new IntersectionObserver(callback, option)
+```
+
+- `callback` : IntersectionObserverEntry 객체들의 배열을 인자로 받는다.
+  IntersectionObserverEntry는 <b>IntersectionObserver가 관찰하는 대상 요소들의 관찰 결과를 담고 있다.</b>
+  따라서 이 callback 함수를 통해 관찰 대상 요소(target)와 상위 요소와의 교차 여부 등을 판단할 수 있다.
+
+  - `entries` : IntersectionObserverEntry 인스턴스 배열
+
+    - `isIntersecting` : target의 교차 여부를 알려주는 property (boolean)
+
+- `option` : IntersectionObserver에서 옵션 설정
+
+  - `threshold` : 교차 여부를 판단하기 위한 기준값. (ex. 0.5 => 교차 영역이 대상 요소의 50% 이상일 경우 교차로 판단)
+
+- `observe(target)` : IntersectionObserver에 대상 요소를 추가해 교차 관찰 시작
+- `unobserve(target)` : IntersectionObserver에서 대상 요소를 제거해 교차 관찰 중지
+- `disconnect()` : IntersectionObserver에서 모든 대상 요소를 제거해 교차 관찰 중지
+
+따라서 target 요소를 설정해 해당 요소가 상위 요소와 교차되었을 경우 페이지를 변경해 데이터가 추가로 불러와지도록 구현해보았다.
+
+```
+// jsx
+<main>
+  <Header products={products} />
+  <ul className='lists'>
+    {isLoading && <div className='loading'></div>}
+    {products.datas.map((product: MockData) => {
+      return (
+        <li key={product.productId} className='list'>
+          <div>id: {product.productId}</div>
+          <div>name: {product.productName}</div>
+          <div>date: {product.boughtDate}</div>
+          <div>price: {product.price}</div>
+        </li>
+      );
+    })}
+    <div ref={endPageRef}></div> // target 요소 설정
+  </ul>
+</main>
+```
+
+맨 아래에 div를 추가하고 `useRef`를 통해 요소를 참조했다. 해당 요소를 target으로 주어 관찰을 시작한다.
+
+```
+useEffect(() => {
+  if (!endPageRef.current || isLoading) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) {
+        setPage((prevPage) => prevPage + 1); // 페이지 증가
+      }
+    },
+    { threshold: 1 }
+  );
+
+  const currentRef = endPageRef.current;
+  observer.observe(currentRef);
+
+  return () => {
+    observer.unobserve(currentRef);
+  };
+}, [isLoading]);
+```
+
+IntersectionObserver을 통해 객체를 생성하고 callback함수로 entries객체를 받는다.
+이 때 isIntersecting을 통해 교차 여부를 검증하고 교차됬을 경우 page를 증가시킨다.
+
+`observe`를 통해 타겟 관찰을 시작하고 컴포넌트가 unmount되었을 경우 `unobserve`를 통해 관찰을 중지한다.
+
+### 결과 화면
+
+![녹화_2024_10_03_14_41_08_756](https://github.com/user-attachments/assets/ba6cd76b-525e-405c-8100-4f2f0707f7dc)
+
+사전 미션을 이렇게 완료했다. 무한 스크롤을 구현하며 useState, useEffect, useRef 등의 Hooks를 사용했는데,
+이제 추후 있을 프리온보딩 강의에서 해당 Hooks들을 좀 더 개념적으로 자세히 배울 생각을 하니 기대가 된다.
+예전에는 기능들을 구현하는데 집중했다면 요즘은 단순히 구현하는 것 말고 왜 이 기술을 사용하는지 또는 어떻게 하면 최적화할 수 있을지 조금 더 고민한다.
+이번 10월 챌린지를 통해 좀 더 깊이있게 React를 학습하는 시간이 되었으면 한다.
