@@ -25,37 +25,51 @@ interface ListLayoutProps {
 function Pagination({ totalPages, currentPage }: PaginationProps) {
   const pathname = usePathname()
   const basePath = pathname.split('/')[1]
+
   const prevPage = currentPage - 1 > 0
   const nextPage = currentPage + 1 <= totalPages
 
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
+
   return (
     <div className="space-y-2 pb-8 pt-6 md:space-y-5">
-      <nav className="flex justify-between">
-        {!prevPage && (
-          <button className="cursor-auto disabled:opacity-50" disabled={!prevPage}>
-            Previous
-          </button>
-        )}
-        {prevPage && (
+      <nav className="flex items-center">
+        {/* Previous Button */}
+        {prevPage ? (
           <Link
             href={currentPage - 1 === 1 ? `/${basePath}/` : `/${basePath}/page/${currentPage - 1}`}
             rel="prev"
           >
-            Previous
+            <button className="rounded px-4 py-2">{'<'}</button>
           </Link>
-        )}
-        <span>
-          {currentPage} of {totalPages}
-        </span>
-        {!nextPage && (
-          <button className="cursor-auto disabled:opacity-50" disabled={!nextPage}>
-            Next
+        ) : (
+          <button className="cursor-auto rounded px-4 py-2 disabled:opacity-50" disabled>
+            {'<'}
           </button>
         )}
-        {nextPage && (
+
+        {/* Page Numbers */}
+        <div className="flex space-x-2">
+          {pageNumbers.map((page) => (
+            <Link
+              key={page}
+              href={page === 1 ? `/${basePath}/` : `/${basePath}/page/${page}`}
+              className={`rounded px-4 py-2 ${page === currentPage ? 'bg-gray-300' : 'hover:bg-gray-200'}`}
+            >
+              {page}
+            </Link>
+          ))}
+        </div>
+
+        {/* Next Button */}
+        {nextPage ? (
           <Link href={`/${basePath}/page/${currentPage + 1}`} rel="next">
-            Next
+            <button className="rounded px-4 py-2">{'>'}</button>
           </Link>
+        ) : (
+          <button className="cursor-auto rounded px-4 py-2 disabled:opacity-50" disabled>
+            {'>'}
+          </button>
         )}
       </nav>
     </div>
@@ -84,7 +98,7 @@ export default function ListLayoutWithTags({
           </h1>
         </div>
         <div className="flex sm:space-x-24">
-          <div className="hidden h-full max-h-screen min-w-[280px] max-w-[280px] flex-wrap overflow-auto rounded bg-gray-50 pt-5 shadow-md dark:bg-gray-900/70 dark:shadow-gray-800/40 sm:flex">
+          <div className="h-full max-h-screen min-w-[280px] max-w-[280px] flex-wrap overflow-auto rounded bg-gray-50 pt-5 shadow-md dark:bg-gray-900/70 dark:shadow-gray-800/40 sm:flex">
             <div className="px-6 py-4">
               {pathname.startsWith('/blog') ? (
                 <h3 className="font-bold uppercase text-primary-500">All Posts</h3>
@@ -119,7 +133,7 @@ export default function ListLayoutWithTags({
               </ul>
             </div>
           </div>
-          <div>
+          <div className="flex flex-col items-center">
             <ul>
               {displayPosts.map((post) => {
                 const { path, date, title, summary, tags } = post
