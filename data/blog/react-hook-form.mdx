@@ -1,0 +1,99 @@
+---
+title: react-hook-form을 통해 Form 최적화하기
+date: '2024-11-11'
+tags: ['React']
+draft: false
+summary: react-hook-form 사용 이유와 적용 과정
+---
+
+처음 React-Hook-Form 라이브러리를 알게 된 것은 어느 챌린지 프로그램을 할 때였다.
+그 프로그램은 인스타그램 어플리케이션을 클론코딩하고 상위 몇인 안에 들면 코드리뷰를 받을 수 있는 기회가 주어졌었는데,
+운이 좋게 순위 안에 들어 코드리뷰를 받을 수 있었다. 이런 저런 피드백들이 있었지만 기억에 남는 피드백 중 하나가 Form 최적화 관련 문제였다.
+해당 프로젝트에는 로그인/회원가입 폼과 포스트 작성폼 등 많은 양의 Form들이 존재했는데
+그렇다 보니 Form안에 데이터들을 작성하면 폼 전체가 리렌더링되는 문제와
+복잡해지는 유효성 검증, 에러 처리 등의 문제가 발생했다.
+이를 보완하기 위해 react-hook-form 라이브러리를 추천받았고 지금까지도 내가 유용하게 사용하는 라이브러리 중 하나로 자리매김했다.
+
+저번에 기업 연계로 한 프로젝트에서도 계약서 관리 부분을 직접 Form으로 구현해야하거나,
+할 일 입력, 즐겨찾기 등록 등 Form을 사용해야 하는 부분이 많았는데 React-Hook-Form 라이브러리를 추천해
+팀원들에게 괜찮은 피드백을 받았었다.
+
+### Form 최적화와 유효성 검증
+
+일반적으로 React에서 HTML Form 요소를 사용하면 입력값이 변경될 때마다 컴포넌트가 리렌더링된다.
+이는 입력 값이 많거나 복잡한 Form의 경우 성능 저하를 초래할 수 있다.
+![녹화_2024_11_11_17_05_58_188](https://github.com/user-attachments/assets/93fe28b8-565c-4331-9fc5-f5803fae4f11)
+다음을 보면 input이 입력될 때마다 해당 Form 전체가 리렌더링되는 것을 볼 수 있다.
+
+하지만 React Hook Form은 입력 값의 변경에 따라 컴포넌트가 불필요하게 리렌더링되는 것을 방지해 성능을 향상시킨다.
+![녹화_2024_11_11_17_20_06_227](https://github.com/user-attachments/assets/a3726ccd-bbb3-43cc-a9a1-5517eace9bd0)
+여기서 아이디, 이메일, 비밀번호 확인 부분은 input을 입력할 때마다 리렌더링이 되지 않지만,
+비밀번호 부분은 react-hook-form 을 사용하지 않았을 때와 마찬가지로 입력할 때마다 리렌더링된다.
+이는 비밀번호와 비밀번호 확인 간의 validation을 위해 react-hook-form의 `watch`로 해당 필드를 계속 관찰하고 있기 때문이다.
+
+```
+const {
+  register,
+  handleSubmit,
+  setValue,
+  watch,
+  formState: { isValid, errors },
+} = useForm<SignupInputs>();
+
+const passwordValue = watch("password");
+```
+
+```
+<div className='flex flex-col gap-1'>
+  <p className='font-bold'>비밀번호</p>
+  <Input
+    type='password'
+    name='password'
+    className='w-full h-11'
+    register={register("password")}
+  />
+</div>
+
+<div className='flex flex-col gap-1'>
+  <p className='font-bold'>비밀번호 확인</p>
+  <Input
+    type='password'
+    className='w-full h-11'
+    register={register("password_confirm", {
+      required: ERROR_REQUIRED,
+      validate: (value) =>
+        value === passwordValue || ERROR_PASSWORD_CONFIRM,
+    })}
+  />
+</div>
+```
+
+react-hook-form은 `register`을 통해 각 필드를 쉽게 관리할 수 있다.
+위와 같이 `required`나 `validate`또는 `pattern`등과 같은 속성을 추가해 각 필드를 제어할 수 있다.
+
+```
+{errors.password_confirm && errors.password_confirm?.message}
+```
+
+```
+<Button
+  className={twMerge(
+    "w-full h-11 bg-blue-400 rounded-xl text-white font-bold my-4",
+    isValid && "bg-blue-600"
+  )}
+>
+  회원가입 하기
+</Button>
+```
+
+react-hook-form은 각 필드에 대한 유효성 검증 뿐 아니라 Form 전체에 대한 유효성 검증도 간편하게 구현할 수 있다.
+각 input들의 유효성 검증을 모두 통과하면 `formState`의 `isValid`가 true가 되어 별다른 코드 추가 없이도 유효성 검증을 구현할 수 있다.
+그리고 이 경우에만 `handleSubmit`에서 데이터가 제출된다.
+또 `isValid`속성을 통해 input이 유효할 때 버튼을 활성화 하는 등의 기능도 간편하게 구현할 수 있다.
+
+.
+
+이번 프로젝트에 react-hook-form을 적용하면서 Form 리렌더링 최적화를 통해 프로젝트 렌더링 성능을 향상시킬 수 있었고,
+유효성 검증 및 오류 처리 코드의 단순화를 통해 코드 가독성과 유지보수성을 높일 수 있었다.
+앞으로도 Form이 많이 포함된 프로젝트에서 react-hook-form을 적극적으로 활용할 기회가 생겼으면 좋겠고,
+추가로 `Zod`나 `Yup`등의 라이브러리와 함께 사용하는 방향도 고려할 계획이다.
