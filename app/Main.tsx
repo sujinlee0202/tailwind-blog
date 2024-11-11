@@ -9,9 +9,9 @@ import { useState } from 'react'
 const POSTS_PER_PAGE = 5
 
 interface PaginationProps {
-  currentPage: any
-  totalPages: any
-  onPageChange: any
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
 }
 
 function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
